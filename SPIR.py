@@ -1,5 +1,6 @@
 import os
 
+from datetime import datetime
 from astropy.io import fits
 from time import sleep
 from matplotlib import pyplot as plt
@@ -20,6 +21,7 @@ class SPIR:
         self.headers = []
 
         self.mount_pointing = []
+        self.airmass = []
 
         self.target = None
 
@@ -33,13 +35,16 @@ class SPIR:
         self.axs[1, 0] = self.fig.add_subplot(2, 2, 3, projection='3d')
 
         self.axs[0, 0].set_title('Latest Image')
-        self.axs[0, 1].set_title('Relative Flux')
+        self.axs[0, 1].set_title('SNR & Relative Flux')
         self.axs[1, 0].set_title('Mount Pointing')
-        self.axs[1, 1].set_title('SNR & Airmass')
+        self.axs[1, 1].set_title('Airmass')
         self.fig.tight_layout(pad=3.0)
         self.fig.set_figheight(8)
         self.fig.set_figwidth(14)
         self.fig.canvas.mpl_connect('button_press_event', onclick)
+
+        #man = plt.get_current_fig_manager()
+        #man.canvas.set_window_title('SPIR v' + str(VERSION))
 
         plt.ion()
         plt.show()
@@ -115,6 +120,8 @@ class SPIR:
         
         self.draw_mount_pointing()
 
+        self.draw_airmass()
+
         self.latest_index = len(self.data) - 1
 
         self.fig.canvas.draw()
@@ -127,6 +134,9 @@ class SPIR:
 
     def draw_mount_pointing(self):
         self.axs[1, 0].cla()
+        self.axs[1, 0].set_title('Mount Pointing: ALT: ' + 
+                                 str(round(self.headers[self.latest_index]['CENTALT'], 4)) +
+                                 ' AZ: ' + str(round(self.headers[self.latest_index]['CENTAZ'], 4)))
         u, v = np.mgrid[0:2*np.pi:20j, 0:0.5*np.pi:10j]
         x = np.cos(u)*np.sin(v)
         y = np.sin(u)*np.sin(v)
@@ -143,6 +153,22 @@ class SPIR:
                               self.mount_pointing[self.latest_index][0],
                               self.mount_pointing[self.latest_index][1],
                               self.mount_pointing[self.latest_index][2], color="g")
+
+    def draw_airmass(self):
+        if self.latest_index == 0:
+            return
+        airmass = []
+        times = []
+        for i in range(self.latest_index):
+            airmass.append(self.headers[i]['AIRMASS'])
+            date_obj = datetime.strptime(self.headers[i]['DATE-OBS'], "%Y-%m-%dT%H:%M:%S.%f")
+            times.append(self.latest_index * self.headers[0]['EXPTIME'])
+        #print(airmass)
+        self.axs[1, 1].cla()
+        self.axs[1, 1].set_aspect("auto")
+        self.axs[1, 1].set_title('Airmass')
+        #self.axs[1, 1].set_yscale('log')
+        self.axs[1, 1].plot(airmass)
 
     def run(self):
         print("Watching data path...")
