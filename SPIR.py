@@ -6,6 +6,11 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 VERSION = 0.01
+click_event = None
+
+def onclick(event):
+    global click_event 
+    click_event = event
 
 class SPIR:
 
@@ -13,6 +18,10 @@ class SPIR:
         self.loaded_files = []
         self.data = []
         self.headers = []
+
+        self.mount_pointing = []
+
+        self.target = None
 
         self.latest_index = 0
 
@@ -22,11 +31,6 @@ class SPIR:
         self.fig, self.axs = plt.subplots(2, 2)
         self.axs[1, 0].remove()
         self.axs[1, 0] = self.fig.add_subplot(2, 2, 3, projection='3d')
-        self.axs[1, 0].grid(False)
-        self.axs[1, 0].set_xticks([])
-        self.axs[1, 0].set_yticks([])
-        self.axs[1, 0].set_zticks([])
-        self.axs[1, 0].set_box_aspect([1.0, 1.0, 0.5])
 
         self.axs[0, 0].set_title('Latest Image')
         self.axs[0, 1].set_title('Relative Flux')
@@ -35,12 +39,7 @@ class SPIR:
         self.fig.tight_layout(pad=3.0)
         self.fig.set_figheight(8)
         self.fig.set_figwidth(14)
-
-        u, v = np.mgrid[0:2*np.pi:20j, 0:0.5*np.pi:10j]
-        x = np.cos(u)*np.sin(v)
-        y = np.sin(u)*np.sin(v)
-        z = np.cos(v)
-        self.axs[1, 0].plot_wireframe(x, y, z, color="r", linewidths=0.5)
+        self.fig.canvas.mpl_connect('button_press_event', onclick)
 
         plt.ion()
         plt.show()
@@ -64,53 +63,93 @@ class SPIR:
         self.data_path = clean_path
 
     def load_new_files(self):
+        global click_event
+        
         self.file_list = []
         for file in os.listdir(self.data_path):
             if file.endswith(".fit"):
                 self.file_list.append(file)
 
         for file in self.file_list:
+            if not self.target and len(self.loaded_files) > 0:
+                if click_event != None:
+                    if click_event.inaxes == self.axs[0, 0]:
+                        self.target = [click_event.xdata, click_event.ydata]
+                        self.display()
+                        confirm = input("\nConfirm target placement(y/n): ")
+                        if not confirm.capitalize() == "Y":
+                            self.target = None
+                            click_event = None
+                            self.display()
+                else:
+                    return
             if not file in self.loaded_files:
                 try:
                     img = fits.open(self.data_path + "/" + file)
                     self.loaded_files.append(file)
                     self.data.append(img[0].data)
                     self.headers.append(img[0].header)
+
+                    theta = np.radians(90 - self.headers[self.latest_index]['CENTALT'])
+                    phi = np.radians(self.headers[self.latest_index]['CENTAZ'] + 90)
+                    x = np.cos(phi)*np.sin(theta)
+                    y = np.sin(phi)*np.sin(theta)
+                    z = np.cos(theta)
+                    self.mount_pointing.append([x, y, z])
+
                     img.close()
-                    print("Loaded:", file)
+                    # print("Loaded:", file)
+                    self.display()
                 except:
                     pass # file creation may not be finished.
 
     def display(self):
-        if len(self.data) == 0 or self.latest_index == len(self.data) - 1:
-            return
-        
         self.latest_index = len(self.data) - 1
         
         latest_data = self.data[self.latest_index]
+        self.axs[0, 0].cla()
         self.axs[0, 0].imshow(latest_data, vmin=np.percentile(latest_data, 1), vmax=np.percentile(latest_data, 99))
         self.axs[0, 0].set_title('Latest Image: ' + self.loaded_files[self.latest_index])
-
-        theta = np.radians(90 - self.headers[self.latest_index]['CENTALT'])
-        phi = np.radians(self.headers[self.latest_index]['CENTAZ'])
-        print(self.headers[self.latest_index]['CENTALT'], self.headers[self.latest_index]['CENTAZ'])
-        x = np.cos(phi)*np.sin(theta)
-        y = np.sin(phi)*np.sin(theta)
-        z = np.cos(phi)
-
-        self.axs[1, 0].scatter(x, y, z, color="g")
-        self.axs[1, 0].quiver(0, 0 ,0, x, y, z, color="b")
+        if self.target:
+            self.draw_target()
+        
+        self.draw_mount_pointing()
 
         self.latest_index = len(self.data) - 1
+
+        self.fig.canvas.draw()
+        self.fig.canvas.flush_events()
+
+    def draw_target(self):
+        self.axs[0, 0].scatter(self.target[0], self.target[1], s=120, facecolors='none', edgecolors='r')
+        self.axs[0, 0].scatter(self.target[0], self.target[1], s=300, facecolors='none', edgecolors='w')
+        self.axs[0, 0].scatter(self.target[0], self.target[1], s=600, facecolors='none', edgecolors='w')
+
+    def draw_mount_pointing(self):
+        self.axs[1, 0].cla()
+        u, v = np.mgrid[0:2*np.pi:20j, 0:0.5*np.pi:10j]
+        x = np.cos(u)*np.sin(v)
+        y = np.sin(u)*np.sin(v)
+        z = np.cos(v)
+        self.axs[1, 0].plot_wireframe(x, y, z, color="r", linewidths=0.5)
+        self.axs[1, 0].quiver(0, 0 ,0, 1, 0, 0, color="r")
+        self.axs[1, 0].grid(False)
+        self.axs[1, 0].set_xticks([])
+        self.axs[1, 0].set_yticks([])
+        self.axs[1, 0].set_zticks([])
+        self.axs[1, 0].set_box_aspect([1.0, 1.0, 0.5])
+
+        self.axs[1, 0].quiver(0, 0 ,0, 
+                              self.mount_pointing[self.latest_index][0],
+                              self.mount_pointing[self.latest_index][1],
+                              self.mount_pointing[self.latest_index][2], color="g")
 
     def run(self):
         print("Watching data path...")
         while True:
             self.load_new_files()
-            self.display()
-
             self.fig.canvas.draw()
             self.fig.canvas.flush_events()
-            sleep(0.1)
+            sleep(0.05)
 
 SPIR()
