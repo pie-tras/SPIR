@@ -30,6 +30,8 @@ class SPIR:
         self.print_splash()
         self.set_data_dir()
 
+        plt.style.use('dark_background')
+
         self.fig, self.axs = plt.subplots(2, 2)
         self.axs[1, 0].remove()
         self.axs[1, 0] = self.fig.add_subplot(2, 2, 3, projection='3d')
@@ -134,6 +136,10 @@ class SPIR:
 
     def draw_mount_pointing(self):
         self.axs[1, 0].cla()
+        self.axs[1, 0].xaxis.pane.fill = False
+        self.axs[1, 0].yaxis.pane.fill = False
+        self.axs[1, 0].zaxis.pane.fill = False
+
         self.axs[1, 0].set_title('Mount Pointing: ALT: ' + 
                                  str(round(self.headers[self.latest_index]['CENTALT'], 4)) +
                                  ' AZ: ' + str(round(self.headers[self.latest_index]['CENTAZ'], 4)))
