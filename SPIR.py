@@ -54,10 +54,8 @@ class Telescope:
         self.ref_flux = []
         self.target_rel_flux = []
         self.ref_rel_flux = []
-        self.subtracted_rel_flux = []
+        self.corrected_rel_flux = []
         self.snr = []
-        self.n_lights = []
-        self.sigma_lights = []
         self.median_dark = None
         self.median_bias = None
         self.dark_rate = None
@@ -162,7 +160,7 @@ class Telescope:
             self.target_coord_hist.append(self.target_coords)
             self.ref_coord_hist.append(self.ref_coords)
 
-            self.compute_sigma_light()
+          #  self.compute_sigma_light()
             self.compute_fluxes()
             self.compute_relative_fluxes()
 
@@ -233,28 +231,30 @@ class Telescope:
    
         light_shape = np.shape(self.latest_frame)
         n_light = self.gain*(self.latest_frame - self.median_bias[0:light_shape[0], 0:light_shape[1]]) - exp_time * self.dark_rate[0:light_shape[0], 0:light_shape[1]]
-        self.n_lights.append(n_light)
 
         read_noise_electrons = self.read_noise_adu * self.gain
         test_val = read_noise_electrons**2  + (exp_time * self.dark_rate[0:light_shape[0], 0:light_shape[1]]) + n_light
-        for y, row in enumerate(test_val):
-            for x, val in enumerate(row):
-                if val < 0:
-                    test_val[y][x] = 0
+        # for y, row in enumerate(test_val):
+        #     for x, val in enumerate(row):
+        #         if val < 0:
+        #             test_val[y][x] = 0
 
         #print(test_val)
-        sigma_n_light = np.sqrt(test_val)
-        self.sigma_lights.append(sigma_n_light)
+        sigma_n_light = np.sqrt(np.abs(test_val))
+        return sigma_n_light
     
     def compute_fluxes(self):
-        target_apt_flux, target_apt_uncertainty = self.target_star_apt.do_photometry(self.latest_frame, error=self.sigma_lights[self.computed_index - 1])
+
+        sigma_light = self.compute_sigma_light()
+
+        target_apt_flux, target_apt_uncertainty = self.target_star_apt.do_photometry(self.latest_frame, error=sigma_light)
         target_sky_stats = ApertureStats(self.latest_frame, self.target_sky_apt)
         target_sky_per_pixel = target_sky_stats.median
         target_sky_flux = self.target_star_apt.area*target_sky_per_pixel
         target_flux = target_apt_flux[0] - target_sky_flux
         self.target_flux.append(target_apt_flux[0] - target_sky_flux)
 
-        ref_apt_flux, ref_apt_uncertainty = self.ref_star_apt.do_photometry(self.latest_frame, error=self.sigma_lights[self.computed_index - 1])
+        ref_apt_flux, ref_apt_uncertainty = self.ref_star_apt.do_photometry(self.latest_frame, error=sigma_light)
         ref_sky_stats = ApertureStats(self.latest_frame, self.ref_sky_apt)
         ref_sky_per_pixel = ref_sky_stats.median
         ref_sky_flux = self.ref_star_apt.area*ref_sky_per_pixel
@@ -267,18 +267,18 @@ class Telescope:
         self.target_rel_flux = self.target_flux/np.median(self.target_flux)
         self.ref_rel_flux = self.ref_flux/np.median(self.ref_flux)
 
-        subtracted_flux = np.subtract(self.target_flux, self.ref_flux)
+        corrected_flux = np.divide(self.target_flux, self.ref_flux)
 
-        self.subtracted_rel_flux = subtracted_flux/np.median(subtracted_flux)
+        self.corrected_rel_flux = corrected_flux/np.median(corrected_flux)
 
 class SPIR:
 
-    BASE_PATH = '../SIM_DATA/data/'
+    BASE_PATH = '../GJ182/data/'
     DATE = '12_3_23'
 
     def __init__(self):
         self.apollo = Telescope(self.BASE_PATH + 'apollo_r/' + self.DATE)
-        self.artemis = Telescope(self.BASE_PATH + 'artemis_g/' + self.DATE, fwhm_est=12)
+        self.artemis = Telescope(self.BASE_PATH + 'artemis_g/' + self.DATE, fwhm_est=7)
         self.leto = Telescope(self.BASE_PATH + 'leto_i/' + self.DATE, target_guess=[704, 515], ref_guess=[800, 667], fwhm_est=13)
 
         self.init_figure()
@@ -379,9 +379,9 @@ class SPIR:
             ref_sky_apt.plot(color='white', linestyle='--', ax=axis)
 
     def plot_relative_fluxes(self):
-        self.axs[0, 1].plot(self.apollo.subtracted_rel_flux)
-        self.axs[1, 1].plot(self.artemis.subtracted_rel_flux)
-        self.axs[2, 1].plot(self.leto.subtracted_rel_flux)
+        self.axs[0, 1].plot(self.apollo.corrected_rel_flux)
+        self.axs[1, 1].plot(self.artemis.corrected_rel_flux)
+        self.axs[2, 1].plot(self.leto.corrected_rel_flux)
 
     def plot_snr(self):
         self.axs[0, 2].plot(self.apollo.snr)
