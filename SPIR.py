@@ -185,13 +185,13 @@ class SPIR:
         telescope.ref_sky_apt.plot(color='white', linestyle='--', ax=axis)
 
     def plot_relative_fluxes(self):
-        self.axs[0, 1].set_xlim(self.apollo.sliced_times[0], self.apollo.sliced_times[-1])
-        self.axs[1, 1].set_xlim(self.artemis.sliced_times[0], self.artemis.sliced_times[-1])
-        self.axs[2, 1].set_xlim(self.leto.sliced_times[0], self.leto.sliced_times[-1])
+        # self.axs[0, 1].set_xlim(self.apollo.sliced_times[0], self.apollo.sliced_times[-1])
+        # self.axs[1, 1].set_xlim(self.artemis.sliced_times[0], self.artemis.sliced_times[-1])
+        # self.axs[2, 1].set_xlim(self.leto.sliced_times[0], self.leto.sliced_times[-1])
 
         self.axs[0, 1].plot(self.apollo.sliced_times, self.apollo.diff_flux)
         self.axs[0, 1].plot(self.artemis.sliced_times, self.artemis.diff_flux)
-        self.axs[2, 1].plot(self.leto.sliced_times, self.leto.diff_flux)
+        self.axs[0, 1].plot(self.leto.sliced_times, self.leto.diff_flux)
 
     def plot_snr(self):
         self.axs[0, 2].plot(self.apollo.sliced_times, self.apollo.snr_sliced)
@@ -199,13 +199,15 @@ class SPIR:
         self.axs[2, 2].plot(self.leto.sliced_times, self.leto.snr_sliced)
 
     def plot_frame_indicator(self):
-        self.axs[0, 1].axvline(x = self.apollo.current_index, color = 'white', linestyle = '--')
-        self.axs[1, 1].axvline(x = self.artemis.current_index, color = 'white', linestyle = '--')
-        self.axs[2, 1].axvline(x = self.leto.current_index, color = 'white', linestyle = '--')
+        # self.axs[0, 1].axvline(x = self.apollo.current_index, color = 'white', linestyle = '--')
+        # self.axs[1, 1].axvline(x = self.artemis.current_index, color = 'white', linestyle = '--')
+        # self.axs[2, 1].axvline(x = self.leto.current_index, color = 'white', linestyle = '--')
 
-        self.axs[0, 2].axvline(x = self.apollo.current_index, color = 'white', linestyle = '--')
-        self.axs[1, 2].axvline(x = self.artemis.current_index, color = 'white', linestyle = '--')
-        self.axs[2, 2].axvline(x = self.leto.current_index, color = 'white', linestyle = '--')
+        # self.axs[0, 2].axvline(x = self.apollo.current_index, color = 'white', linestyle = '--')
+        # self.axs[1, 2].axvline(x = self.artemis.current_index, color = 'white', linestyle = '--')
+        # self.axs[2, 2].axvline(x = self.leto.current_index, color = 'white', linestyle = '--')
+
+        pass
 
     def redraw(self):
         self.cycle_figure()
